@@ -461,12 +461,78 @@ public:
       oss<<"--"<<ordered[i]->name();
       for (size_t j=ordered[i]->name().length(); j<max_width+4; j++)
         oss<<' ';
-      oss<<ordered[i]->description()<<std::endl;
+
+      auto desc = ordered[i]->description();
+      if (this->wrap_desc) {
+        oss<< std::endl;
+        desc = wrap_str(desc, 10, 10, wrap_desc_at_count);
+        oss<< desc <<std::endl;
+        if (extra_newline_after_desc) {
+          oss<< std::endl;
+        }
+
+      } else {
+        oss<<desc<<std::endl;
+      }
     }
     return oss.str();
   }
 
+  void enable_wrap_desc(int wrap_at_count, bool add_extra_newline) {
+    wrap_desc = true;
+    wrap_desc_at_count = wrap_at_count;
+    extra_newline_after_desc = add_extra_newline;
+  }
+
 private:
+  std::string wrap_str(
+    const std::string &s,
+    int first_line_indent,
+    int indent,
+    int wrap) const {
+
+    std::string result;
+    auto max = wrap - indent;
+    auto len = s.length();
+
+    if (first_line_indent > 0) {
+      result.append(first_line_indent, ' ');
+    }
+
+    std::size_t end = 0;
+    while (true) {
+      auto begin = end;
+      end += max;
+
+      if (end < len) {
+        while (end < len && s[end] != ' ') {
+          --end;
+        }
+        if (end < begin) {
+          end = std::max(len, begin + max);
+        }
+
+      } else {
+        end = len;
+      }
+
+      if (begin < len && s[begin] == ' ') {
+        ++begin;
+      }
+
+      if (result.length() > first_line_indent) {
+        result.append(1, '\n');
+        result.append(indent, ' ');
+      }
+      result.append(s, begin, end - begin);
+
+      if (end == len) {
+        break;
+      }
+    }
+
+    return result;
+  }
 
   void check(int argc, bool ok){
     if ((argc==1 && !ok) || exist("help")){
@@ -684,8 +750,11 @@ private:
 
   std::string prog_name;
   std::vector<std::string> others;
-
   std::vector<std::string> errors;
+
+  bool wrap_desc{false};
+  bool extra_newline_after_desc{false};
+  int wrap_desc_at_count;
 };
 
 } // cmdline
